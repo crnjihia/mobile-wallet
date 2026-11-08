@@ -1,0 +1,77 @@
+-- path: shared/src/commonMain/sqldelight/com/chris/mobilewallet/db/AppDatabase.sq
+
+CREATE TABLE accountEntity (
+    userId TEXT NOT NULL PRIMARY KEY,
+    phoneNumber TEXT NOT NULL UNIQUE,
+    fullName TEXT NOT NULL,
+    balanceMinor INTEGER NOT NULL,
+    pinHash TEXT NOT NULL,
+    isBiometricEnabled INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE transactionEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    idempotencyKey TEXT NOT NULL UNIQUE,
+    senderPhone TEXT NOT NULL,
+    recipientPhone TEXT NOT NULL,
+    amountMinor INTEGER NOT NULL,
+    feeMinor INTEGER NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'KES',
+    state TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
+    retryCount INTEGER NOT NULL DEFAULT 0,
+    lastError TEXT
+);
+
+CREATE TABLE outboxEntity (
+    idempotencyKey TEXT NOT NULL PRIMARY KEY,
+    recipientPhone TEXT NOT NULL,
+    amountMinor INTEGER NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    createdAtTimestamp INTEGER NOT NULL,
+    retryCount INTEGER NOT NULL DEFAULT 0,
+    lastAttemptTimestamp INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'QUEUED'
+);
+
+-- Account Queries
+insertOrUpdateAccount:
+INSERT OR REPLACE INTO accountEntity (userId, phoneNumber, fullName, balanceMinor, pinHash, isBiometricEnabled)
+VALUES (?, ?, ?, ?, ?, ?);
+
+getAccount:
+SELECT * FROM accountEntity LIMIT 1;
+
+updateBalance:
+UPDATE accountEntity SET balanceMinor = ? WHERE userId = ?;
+
+-- Transaction Queries
+insertTransaction:
+INSERT OR REPLACE INTO transactionEntity (id, idempotencyKey, senderPhone, recipientPhone, amountMinor, feeMinor, currency, state, timestamp, retryCount, lastError)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateTransactionState:
+UPDATE transactionEntity SET state = ?, retryCount = ?, lastError = ? WHERE idempotencyKey = ?;
+
+getTransactions:
+SELECT * FROM transactionEntity ORDER BY timestamp DESC;
+
+getTransactionByIdempotencyKey:
+SELECT * FROM transactionEntity WHERE idempotencyKey = ? LIMIT 1;
+
+-- Outbox Queries
+insertOutboxItem:
+INSERT OR REPLACE INTO outboxEntity (idempotencyKey, recipientPhone, amountMinor, note, createdAtTimestamp, retryCount, lastAttemptTimestamp, status)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+getPendingOutboxItems:
+SELECT * FROM outboxEntity WHERE status IN ('QUEUED', 'RETRYING') ORDER BY createdAtTimestamp ASC;
+
+getAllOutboxItems:
+SELECT * FROM outboxEntity ORDER BY createdAtTimestamp DESC;
+
+updateOutboxStatus:
+UPDATE outboxEntity SET status = ?, retryCount = ?, lastAttemptTimestamp = ? WHERE idempotencyKey = ?;
+
+deleteOutboxItem:
+DELETE FROM outboxEntity WHERE idempotencyKey = ?;
