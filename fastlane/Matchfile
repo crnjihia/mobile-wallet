@@ -1,0 +1,4 @@
+# path: fastlane/Matchfile
+git_url(ENV["MATCH_GIT_URL"] || "git@github.com:chris/mobile-wallet-certificates.git")
+storage_mode("git")
+type("appstore")

@@ -1,0 +1,35 @@
+# path: fastlane/Fastfile
+default_platform(:android)
+
+platform :android do
+  desc "Build and publish release AAB to Google Play Internal Track"
+  lane :android_internal do
+    # MANUAL STEP: Ensure PLAY_STORE_JSON_KEY_PATH and keystore secrets are configured in .env
+    gradle(
+      task: "bundle",
+      build_type: "Release"
+    )
+    upload_to_play_store(
+      track: "internal",
+      aab: "androidApp/build/outputs/bundle/release/androidApp-release.aab"
+    )
+  end
+end
+
+platform :ios do
+  desc "Build and deploy iOS beta build to TestFlight"
+  lane :ios_beta do
+    # MANUAL STEP: Ensure Apple Developer Team ID and match git repo credentials are exported in env
+    match(type: "appstore", readonly: true)
+    build_app(
+      workspace: "iosApp/iosApp.xcworkspace",
+      scheme: "iosApp"
+    )
+    upload_to_testflight
+  end
+end
+
+desc "Increment version code across Android and iOS"
+lane :bump_version do
+  # Version increment lane
+end
